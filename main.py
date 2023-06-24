@@ -1,4 +1,3 @@
-import ipaddress
 import os
 import socketserver
 import traceback
@@ -9,12 +8,12 @@ from urllib.parse import urlsplit
 import requests
 from bs4 import BeautifulSoup
 
-box_ip = os.getenv('BOX_IP')
-assert box_ip, 'Env var BOX_IP is missing'
-assert ipaddress.ip_address(box_ip)
+box_url = os.getenv('BOX_URL', '').removesuffix('/')
+assert box_url, 'Env var BOX_URL is missing, e.g. http://192.168.1.106'
+
 
 def export_prometheus_metrics():
-    res = requests.get(f'http://{box_ip}/deviceMessages')
+    res = requests.get(f'{box_url}/deviceMessages')
     assert res.status_code == 200, res.text
 
     soup = BeautifulSoup(res.text)
@@ -24,7 +23,9 @@ def export_prometheus_metrics():
     for table in soup.find('main').findAll('table'):
         for row in table.findAll('tr'):
             timestamp, name, value, unit = row.findAll('td')
-            timestamp = int(datetime.strptime(timestamp.text, "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc).timestamp())
+            timestamp = datetime.strptime(
+                timestamp.text, "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
+            epoch = int(timestamp.timestamp())
             name = name.text.strip().lower().replace('.', '_')
             try:
                 if '.' in value.text:
@@ -35,11 +36,17 @@ def export_prometheus_metrics():
                 value = value.text.strip()
             unit = unit.text.strip().lower()
             if unit:
-                unit = {'v': 'volt', 'a': 'ampere', 'w': 'watt', 'hz': 'hertz'}.get(unit, unit)
+                unit = {
+                    'v': 'volt',
+                    'a': 'ampere',
+                    'w': 'watt',
+                    'hz': 'hertz'
+                }.get(unit, unit)
                 name += '_' + unit
 
-            if type(value) in [float, int]:  # prometheus only takes numeric values: https://github.com/prometheus/prometheus/issues/2227
-                output += f'enpal_{name}{{box_ip="{box_ip}"}} {value} {timestamp}000\n'
+            # prometheus only takes numeric values: https://github.com/prometheus/prometheus/issues/2227
+            if type(value) in [float, int]:
+                output += f'enpal_{name}{{box_url="{box_url}"}} {value} {epoch}000\n'
 
     return output
 
