@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 box_url = os.getenv('BOX_URL', '').removesuffix('/')
 assert box_url, 'Env var BOX_URL is missing, e.g. http://192.168.1.106'
 
+box_name = os.getenv('BOX_NAME') or box_url
+
 
 def export_prometheus_metrics():
     res = requests.get(f'{box_url}/deviceMessages')
@@ -46,7 +48,7 @@ def export_prometheus_metrics():
 
             # prometheus only takes numeric values: https://github.com/prometheus/prometheus/issues/2227
             if type(value) in [float, int]:
-                output += f'enpal_{name}{{box_url="{box_url}"}} {value} {epoch}000\n'
+                output += f'enpal_{name}{{box="{box_name}"}} {value} {epoch}000\n'
 
     return output
 
