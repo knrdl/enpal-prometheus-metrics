@@ -24,16 +24,22 @@ def export_prometheus_metrics():
 
     for table in soup.find('main').findAll('table'):
         for row in table.findAll('tr'):
-            timestamp, name, value, unit = row.findAll('td')
+            if row.find('th'):
+                continue
+            cols = row.findAll('td')
+            if cols[0].text.strip()[0].isdigit():
+                timestamp, name, value, unit = cols
+            else:
+                name, value, unit, timestamp = cols
             timestamp = datetime.strptime(
-                timestamp.text, "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
+                timestamp.text.strip(), "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
             epoch = int(timestamp.timestamp())
             name = name.text.strip().lower().replace('.', '_')
             try:
                 if '.' in value.text:
-                    value = float(value.text)
+                    value = float(value.text.strip())
                 else:
-                    value = int(value.text)
+                    value = int(value.text.strip())
             except ValueError:
                 value = value.text.strip()
             unit = unit.text.strip().lower()
