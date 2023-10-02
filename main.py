@@ -4,6 +4,7 @@ import traceback
 from datetime import datetime, timezone
 from http import server
 from urllib.parse import urlsplit
+import re
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,6 +13,17 @@ box_url = os.getenv('BOX_URL', '').removesuffix('/')
 assert box_url, 'Env var BOX_URL is missing, e.g. http://192.168.1.106'
 
 box_name = os.getenv('BOX_NAME') or box_url
+
+units = {
+    'V': 'volt',
+    'A': 'ampere',
+    'W': 'watt',
+    'Hz': 'hertz',
+    'kWh': 'kwh',
+    'Wh': 'wh',
+    '°C': 'celsius',
+    '%': 'percent'
+}
 
 
 def export_prometheus_metrics():
@@ -27,29 +39,28 @@ def export_prometheus_metrics():
             if row.find('th'):
                 continue
             cols = row.findAll('td')
-            if cols[0].text.strip()[0].isdigit():
-                timestamp, name, value, unit = cols
+            name, value_unit, timestamp = cols
+            value_unit = (value_unit.find(text=True, recursive=False) or '').strip()
+
+            for abbr, text in units.items():
+                if value_unit.endswith(abbr):
+                    value, unit = value_unit.removesuffix(abbr), text
+                    break
             else:
-                name, value, unit, timestamp = cols
-            timestamp = datetime.strptime(
-                timestamp.text.strip(), "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
+                value, unit = value_unit, ''
+
+            timestamp = datetime.strptime(timestamp.find(text=True, recursive=False).strip(), "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
             epoch = int(timestamp.timestamp())
             name = name.text.strip().lower().replace('.', '_')
             try:
-                if '.' in value.text:
-                    value = float(value.text.strip())
+                if '.' in value:
+                    value = float(value)
                 else:
-                    value = int(value.text.strip())
+                    value = int(value)
             except ValueError:
-                value = value.text.strip()
-            unit = unit.text.strip().lower()
+                if m := re.fullmatch('.+\s+\((\d+)\)', value):
+                    value = int(m.group(1))
             if unit:
-                unit = {
-                    'v': 'volt',
-                    'a': 'ampere',
-                    'w': 'watt',
-                    'hz': 'hertz'
-                }.get(unit, unit)
                 name += '_' + unit
 
             # prometheus only takes numeric values: https://github.com/prometheus/prometheus/issues/2227
