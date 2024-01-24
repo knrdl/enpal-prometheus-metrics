@@ -40,7 +40,7 @@ def export_prometheus_metrics():
                 continue
             cols = row.findAll('td')
             name, value_unit, timestamp = cols
-            value_unit = (value_unit.find(text=True, recursive=False) or '').strip()
+            value_unit = (value_unit.find(string=True, recursive=False) or '').strip()
 
             for abbr, text in units.items():
                 if value_unit.endswith(abbr):
@@ -49,7 +49,7 @@ def export_prometheus_metrics():
             else:
                 value, unit = value_unit, ''
 
-            timestamp = datetime.strptime(timestamp.find(text=True, recursive=False).strip(), "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
+            timestamp = datetime.strptime(timestamp.find(string=True, recursive=False).strip(), "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
             epoch = int(timestamp.timestamp())
             name = name.text.strip().lower().replace('.', '_')
             try:
