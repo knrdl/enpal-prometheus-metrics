@@ -1,4 +1,4 @@
-FROM python:3.12.5-alpine3.19
+FROM python:3.12.6-alpine3.19
 
 ENV PYTHONIOENCODING=utf-8
 ENV PYTHONUNBUFFERED=1
