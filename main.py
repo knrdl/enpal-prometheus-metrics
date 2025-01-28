@@ -49,7 +49,8 @@ def export_prometheus_metrics():
             else:
                 value, unit = value_unit, ''
 
-            timestamp = datetime.strptime(timestamp.find(string=True, recursive=False).strip(), "%m/%d/%Y %I:%M:%S%p").replace(tzinfo=timezone.utc)
+            timestamp_str = re.sub(r'\s', ' ', timestamp.find(string=True, recursive=False).strip())
+            timestamp = datetime.strptime(timestamp_str, "%m/%d/%Y %I:%M:%S %p").replace(tzinfo=timezone.utc)
             epoch = int(timestamp.timestamp())
             name = name.text.strip().lower().replace('.', '_')
             try:
